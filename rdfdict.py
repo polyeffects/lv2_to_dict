@@ -2,17 +2,23 @@
 import rdflib
 import sys
 import os
+import collections
 
 import lv2_ns
 import w3_ns
 import usefulinc_ns
 
-import collections
 
-class TestDict(collections.MutableMapping):
+class RDFdict(collections.MutableMapping):
+    namespaces = {
+            "xsd"     : rdflib.Namespace("http://www.w3.org/2001/XMLSchema#"),
+            "rdfs"    : rdflib.Namespace("http://www.w3.org/2000/01/rdf-schema#"),
+            }
     def __init__(self, *args, **kwargs):
         self.store = dict()
         self.update(dict(*args, **kwargs))  # use the free update to set keys
+        self.graph = rdflib.ConjunctiveGraph()
+        self.parsed_files = set()
 
     def __getitem__(self, key):
         return self.store[key]
@@ -29,16 +35,10 @@ class TestDict(collections.MutableMapping):
     def __len__(self):
         return len(self.store)
 
-class Model(object):
-    namespaces = {
-            "xsd"     : rdflib.Namespace("http://www.w3.org/2001/XMLSchema#"),
-            "rdfs"    : rdflib.Namespace("http://www.w3.org/2000/01/rdf-schema#"),
-            }
-    def __init__(self, format='n3'):
-        self.graph = rdflib.ConjunctiveGraph()
-        self.format = format
-        self.parsed_files = set()
-    def parse(self, path):
+    def __repr__(self):
+        return self.store.__repr__()
+
+    def parse(self, path, format="n3"):
         if not path.startswith('file://'):
             path = os.path.realpath(path)
             assert os.path.exists(path)
@@ -47,19 +47,35 @@ class Model(object):
             return
         self.parsed_files.add(path)
         graph = rdflib.ConjunctiveGraph()
-        graph.parse(path, format=self.format)
+        graph.parse(path, format=format)
         for s,p,o in graph.triples([None, self.namespaces["rdfs"].seeAlso, None]):
             self.parse(o)
         self.graph += graph
-    def interpret(self, tree):
+    def structure(self, subject=None):
+        self.store = self._structure(subject=subject)
+    def _structure(self, subject=None):
+        tree = {}
+        for s,p,o in self.graph.triples((subject, None, None)):
+                if s not in tree:
+                    tree[s] = {} 
+                if p not in tree[s]:
+                    tree[s][p] = []
+                if isinstance(o, rdflib.BNode):
+                    tree[s][p].append(self._structure(subject=o))
+                else:
+                    tree[s][p].append(o)
+        return tree
+    def interpret(self):
+        self.store = self._interpret(self.store)
+    def _interpret(self, tree):
         if isinstance(tree, dict):
             interp_tree = {}
             for key, item in tree.items():
-                interp_key = self.interpret(key)
+                interp_key = self._interpret(key)
                 if isinstance(item, dict):
-                    interp_tree[interp_key] = self.interpret(item)
+                    interp_tree[interp_key] = self._interpret(item)
                 elif isinstance(item, list):
-                    interp_tree[interp_key] = [self.interpret(i) for i in item]
+                    interp_tree[interp_key] = [self._interpret(i) for i in item]
             return interp_tree
         else:
             return self._interpret_rdfobj(tree)
@@ -82,18 +98,6 @@ class Model(object):
                 return obj
         except:
             return obj
-    def structure(self, subject=None):
-        tree = {}
-        for s,p,o in self.graph.triples((subject, None, None)):
-                if s not in tree:
-                    tree[s] = {} 
-                if p not in tree[s]:
-                    tree[s][p] = []
-                if isinstance(o, rdflib.BNode):
-                    tree[s][p].append(self.structure(subject=o))
-                else:
-                    tree[s][p].append(o)
-        return tree
 
 if __name__ == "__main__":
     from pprint import pprint
@@ -105,19 +109,20 @@ if __name__ == "__main__":
                                        If not given all nodes are parsed and printed.''',
                                        nargs="?", default=None)
     args = parser.parse_args()
-    model = Model()
-    model.parse(args.ttl_file)
+    rdf_dict = RDFdict()
+    rdf_dict.parse(args.ttl_file)
+
     if args.URI is None:
         URI = None
     else:
         URI = rdflib.URIRef(args.URI)
 
-    tree = model.structure(subject=URI)
+    rdf_dict.structure(subject=URI)
 
-    model.namespaces.update(lv2_ns.namespaces)
-    model.namespaces.update(w3_ns.namespaces)
-    model.namespaces.update(usefulinc_ns.namespaces)
+    rdf_dict.namespaces.update(lv2_ns.namespaces)
+    rdf_dict.namespaces.update(w3_ns.namespaces)
+    rdf_dict.namespaces.update(usefulinc_ns.namespaces)
+    rdf_dict.interpret()
 
-    tree = model.interpret(tree)
-    pprint(tree)
+    pprint(rdf_dict.store)
 
