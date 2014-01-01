@@ -17,41 +17,26 @@ import sys, os
 import rdflib
 
 rdflib_version = [int(i) for i in rdflib.__version__.split('.')]
-
 if rdflib_version <= [2,4,99]:
-    from rdflib.BNode import BNode
-    from rdflib.Graph import ConjunctiveGraph
-    from rdflib.URIRef import URIRef
-    from rdflib.Literal import Literal
-    from rdflib.Namespace import Namespace
     from rdflib.RDFS import RDFSNS as RDFS
-    XSD = Namespace("http://www.w3.org/2001/XMLSchema#")
+    XSD = rdflib.Namespace("http://www.w3.org/2001/XMLSchema#")
 else:
-    from rdflib.graph import ConjunctiveGraph
-    from rdflib.term import BNode
-    from rdflib.term import Literal
-    from rdflib.term import URIRef
-    from rdflib.namespace import Namespace
     from rdflib.namespace import RDFS, XSD
 
 class RDFdict(dict):
     def __init__(self, *args, **kwargs):
         self.update(dict(*args, **kwargs))
-        self.graph = ConjunctiveGraph()
+        self.graph = rdflib.ConjunctiveGraph()
         self.parsed_files = set()
-    def parse(self, path, format="n3"):
+    def parse(self, path, format="n3", subject=None):
         '''Parse a file into the RDFdict.graph even with no namespaces given. The rdf 
         schema #seeAlso is supported and the files will be parsed recursively. '''
-        if not path.startswith('file://'):
-            path = os.path.realpath(path)
-            assert os.path.exists(path)
-            path = 'file://%s' % path
         if path in self.parsed_files:
             return
         self.parsed_files.add(path)
-        graph = ConjunctiveGraph()
+        graph = rdflib.ConjunctiveGraph()
         graph.parse(path, format=format)
-        for s,p,o in graph.triples([None, RDFS.seeAlso, None]):
+        for s,p,o in graph.triples((subject, RDFS.seeAlso, None)):
             self.parse(o)
         self.graph += graph
     def structure(self, subject=None):
@@ -66,16 +51,16 @@ class RDFdict(dict):
                     tree[s] = {} 
                 if p not in tree[s]:
                     tree[s][p] = []
-                if isinstance(o, BNode):
+                if isinstance(o, rdflib.BNode):
                     tree[s][p].append(self._structure(subject=o))
                 else:
                     tree[s][p].append(o)
         return tree
     def interpret(self, *args):
         '''Interprets itself according to the namespaces dictionaries that map strings 
-        to rdflib Namespaces. The strings that form the keys of the namespaces replace the 
+        to rdflib namespaces. The strings that form the keys of the namespaces replace the 
         rdflib URIRefs. Rdflib Literals are interpreted as ints, floats or unicode 
-        according to their data_type even with no namespaces given'''
+        according to their datatype even with no namespaces given'''
         self.namespaces = {}
         for d in args:
             self.namespaces.update(d)
@@ -93,14 +78,17 @@ class RDFdict(dict):
         else:
             return self._interpret_rdfobj(tree)
     def _interpret_rdfobj(self, obj):
-            if isinstance(obj, Literal):
+            if isinstance(obj, rdflib.Literal):
                 if(obj.datatype == XSD.integer):
                     return int(obj)
-                elif(obj.datatype == XSD.float):
+                elif((obj.datatype == XSD.float) or (obj.datatype == XSD.double) or (obj.datatype == XSD.decimal)):
                     return float(obj)
                 else:
-                    return str(obj)
-            elif isinstance(obj, URIRef):
+                    try:
+                        return unicode(obj)
+                    except NameError: #python3
+                        return str(obj)
+            elif isinstance(obj, rdflib.URIRef):
                 for key, namespace in self.namespaces.items():
                     if obj.startswith(namespace):
                         return key + ":" + obj.split("#")[1]
@@ -108,26 +96,3 @@ class RDFdict(dict):
                     return obj
             else:
                 return obj
-
-if __name__ == "__main__":
-    from pprint import pprint
-    import argparse
-    import namespaces
-    parser = argparse.ArgumentParser()
-    parser.add_argument("ttl_file", help='''File in turtle format that contains the info
-                                          for the RDF graph.''')
-    parser.add_argument("URI", help='''URI that forms the base node for the dictionary. 
-                                       If not given all nodes are parsed and printed.''',
-                                       nargs="?", default=None)
-    args = parser.parse_args()
-    if args.URI is None:
-        URI = None
-    else:
-        URI = URIRef(args.URI)
-
-    rdf_dict = RDFdict()
-    rdf_dict.parse(args.ttl_file)
-    rdf_dict.structure(subject=URI)
-    rdf_dict.interpret(namespaces.lv2, namespaces.w3, namespaces.usefulinc, namespaces.kxstudio)
-    pprint(rdf_dict)
-
