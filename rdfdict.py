@@ -4,41 +4,21 @@ import sys
 import os
 import collections
 
-import lv2_ns
-import w3_ns
-import usefulinc_ns
 
-
-class RDFdict(collections.MutableMapping):
-    namespaces = {
-            "xsd"     : rdflib.Namespace("http://www.w3.org/2001/XMLSchema#"),
-            "rdfs"    : rdflib.Namespace("http://www.w3.org/2000/01/rdf-schema#"),
-            }
+class RDFdict(dict):
     def __init__(self, *args, **kwargs):
-        self.store = dict()
         self.update(dict(*args, **kwargs))  # use the free update to set keys
         self.graph = rdflib.ConjunctiveGraph()
         self.parsed_files = set()
 
-    def __getitem__(self, key):
-        return self.store[key]
-
-    def __setitem__(self, key, value):
-        self.store[key] = value
-
-    def __delitem__(self, key):
-        del self.store[key]
-
-    def __iter__(self):
-        return iter(self.store)
-
-    def __len__(self):
-        return len(self.store)
-
-    def __repr__(self):
-        return self.store.__repr__()
+        #these two namespaces are required to function
+        self.namespaces = {
+                "xsd"     : rdflib.Namespace("http://www.w3.org/2001/XMLSchema#"),
+                "rdfs"    : rdflib.Namespace("http://www.w3.org/2000/01/rdf-schema#"),
+                }
 
     def parse(self, path, format="n3"):
+        '''Parse a file into the RDFdict.graph'''
         if not path.startswith('file://'):
             path = os.path.realpath(path)
             assert os.path.exists(path)
@@ -52,7 +32,10 @@ class RDFdict(collections.MutableMapping):
             self.parse(o)
         self.graph += graph
     def structure(self, subject=None):
-        self.store = self._structure(subject=subject)
+        '''Fills itself as a dictionary that represents the structure of the graph.
+        Copies of dictionaries with nodes as subjects replace nodes that are objects. 
+        ''' 
+        self.update(self._structure(subject=subject))
     def _structure(self, subject=None):
         tree = {}
         for s,p,o in self.graph.triples((subject, None, None)):
@@ -66,7 +49,11 @@ class RDFdict(collections.MutableMapping):
                     tree[s][p].append(o)
         return tree
     def interpret(self):
-        self.store = self._interpret(self.store)
+        '''Interprets itself according to the namespaces. Update the namespaces 
+        dictionary with your own namespace dictionary first. The strings that form 
+        the keys of the namespaces replace the rdflib URIRefs. rdflib Literals are 
+        interpreted as ints, floats or unicode according to their data_type'''
+        self.update(self._interpret(self))
     def _interpret(self, tree):
         if isinstance(tree, dict):
             interp_tree = {}
@@ -90,7 +77,7 @@ class RDFdict(collections.MutableMapping):
                     return obj.decode()
             elif isinstance(obj, rdflib.URIRef):
                 for key, namespace in self.namespaces.items():
-                    if namespace in obj:
+                    if obj.startswith(namespace):
                         return key + ":" + obj.split("#")[1]
                 else:
                     return obj
@@ -102,6 +89,9 @@ class RDFdict(collections.MutableMapping):
 if __name__ == "__main__":
     from pprint import pprint
     import argparse
+    import lv2_ns
+    import w3_ns
+    import usefulinc_ns
     parser = argparse.ArgumentParser()
     parser.add_argument("ttl_file", help='''File in turtle format that contains the info
                                           for the RDF graph.''')
@@ -124,5 +114,5 @@ if __name__ == "__main__":
     rdf_dict.namespaces.update(usefulinc_ns.namespaces)
     rdf_dict.interpret()
 
-    pprint(rdf_dict.store)
+    pprint(rdf_dict)
 
