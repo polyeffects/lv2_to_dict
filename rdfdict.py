@@ -3,18 +3,36 @@ import rdflib
 import sys
 import os
 
+import lv2_ns
+import w3_ns
+import usefulinc_ns
+
+import collections
+
+class TestDict(collections.MutableMapping):
+    def __init__(self, *args, **kwargs):
+        self.store = dict()
+        self.update(dict(*args, **kwargs))  # use the free update to set keys
+
+    def __getitem__(self, key):
+        return self.store[key]
+
+    def __setitem__(self, key, value):
+        self.store[key] = value
+
+    def __delitem__(self, key):
+        del self.store[key]
+
+    def __iter__(self):
+        return iter(self.store)
+
+    def __len__(self):
+        return len(self.store)
+
 class Model(object):
     namespaces = {
             "xsd"     : rdflib.Namespace("http://www.w3.org/2001/XMLSchema#"),
             "rdfs"    : rdflib.Namespace("http://www.w3.org/2000/01/rdf-schema#"),
-            "rdf"     : rdflib.Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
-            "bufsize" : rdflib.Namespace("http://lv2plug.in/ns/ext/buf-size#"),
-            "atom"    : rdflib.Namespace("http://lv2plug.in/ns/ext/atom#"),
-            "lv2"     : rdflib.Namespace("http://lv2plug.in/ns/lv2core#"),
-            "midi"    : rdflib.Namespace("http://lv2plug.in/ns/ext/midi#"),
-            "owl"     : rdflib.Namespace("http://www.w3.org/2002/07/owl#"), 
-            "doap"    : rdflib.Namespace("http://usefulinc.com/ns/doap#"),
-            "slim"    : rdflib.Namespace("https://github.com/kasbah/slim_looper.lv2#"),
             }
     def __init__(self, format='n3'):
         self.graph = rdflib.ConjunctiveGraph()
@@ -93,7 +111,13 @@ if __name__ == "__main__":
         URI = None
     else:
         URI = rdflib.URIRef(args.URI)
+
     tree = model.structure(subject=URI)
+
+    model.namespaces.update(lv2_ns.namespaces)
+    model.namespaces.update(w3_ns.namespaces)
+    model.namespaces.update(usefulinc_ns.namespaces)
+
     tree = model.interpret(tree)
     pprint(tree)
 
