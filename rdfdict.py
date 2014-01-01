@@ -33,7 +33,19 @@ class Model(object):
         for s,p,o in graph.triples([None, self.namespaces["rdfs"].seeAlso, None]):
             self.parse(o)
         self.graph += graph
-    def interpret(self, obj):
+    def interpret(self, tree):
+        if isinstance(tree, dict):
+            interp_tree = {}
+            for key, item in tree.items():
+                interp_key = self.interpret(key)
+                if isinstance(item, dict):
+                    interp_tree[interp_key] = self.interpret(item)
+                elif isinstance(item, list):
+                    interp_tree[interp_key] = [self.interpret(i) for i in item]
+            return interp_tree
+        else:
+            return self._interpret_rdfobj(tree)
+    def _interpret_rdfobj(self, obj):
         try:
             if isinstance(obj, rdflib.Literal):
                 if(obj.datatype == self.namespaces["xsd"].integer):
@@ -41,7 +53,7 @@ class Model(object):
                 elif(obj.datatype == self.namespaces["xsd"].float):
                     return float(obj.decode())
                 else:
-                    return unicode(obj.decode())
+                    return obj.decode()
             elif isinstance(obj, rdflib.URIRef):
                 for key, namespace in self.namespaces.items():
                     if namespace in obj:
@@ -55,8 +67,6 @@ class Model(object):
     def structure(self, subject=None):
         tree = {}
         for s,p,o in self.graph.triples((subject, None, None)):
-                s = self.interpret(s)
-                p = self.interpret(p)
                 if s not in tree:
                     tree[s] = {} 
                 if p not in tree[s]:
@@ -64,7 +74,7 @@ class Model(object):
                 if isinstance(o, rdflib.BNode):
                     tree[s][p].append(self.structure(subject=o))
                 else:
-                    tree[s][p].append(self.interpret(o))
+                    tree[s][p].append(o)
         return tree
 
 if __name__ == "__main__":
@@ -84,5 +94,6 @@ if __name__ == "__main__":
     else:
         URI = rdflib.URIRef(args.URI)
     tree = model.structure(subject=URI)
+    tree = model.interpret(tree)
     pprint(tree)
 
