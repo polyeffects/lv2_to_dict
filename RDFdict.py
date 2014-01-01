@@ -12,6 +12,7 @@
 # WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
 import sys, os
 import rdflib
 
@@ -127,6 +128,6 @@ if __name__ == "__main__":
     rdf_dict = RDFdict()
     rdf_dict.parse(args.ttl_file)
     rdf_dict.structure(subject=URI)
-    rdf_dict.interpret(namespaces.lv2, namespaces.w3, namespaces.usefulinc)
+    rdf_dict.interpret(namespaces.lv2, namespaces.w3, namespaces.usefulinc, namespaces.kxstudio)
     pprint(rdf_dict)
 
