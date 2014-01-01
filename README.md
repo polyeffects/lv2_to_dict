@@ -4,7 +4,7 @@ Python-RDFdict is a small utility class that uses [RDFLib][1] to represent RDF a
 a subclass of `dict` with a few added methods that help parse and structure RDF. It turns 
 itself into a dict of dicts and lists of dicts that represents a hierarchy according to nodes. 
 
-It also allows for interpreting URIRefs and Literals as strings, ints and floats according to the
+It also allows for interpreting Literals as strings, ints and floats and URIRefs as strings according to the
 namespaces you specify. Some namespaces are included in [namespaces.py](namespaces.py) for convenience.
 
 I created this mainly to parse [lv2][2] .ttl files in python but it may be useful for other purposes.
@@ -26,14 +26,15 @@ rdf_dict = RDFdict()
 
 #we parse the file into the rdf_dict.graph which is a rdflib.ConjunctiveGraph
 #the subject is optional but saves time parsing only what we care about
-print("Fetching and parsing file, the fetching may take a while as it's an online resource.")
+print("Fetching and parsing the ttl file.)
+print("The fetching may take a while as it's an online resource.")
 rdf_dict.parse(ttl_file, subject=amp)
 
 #we populate rdf_dict with a structure
 rdf_dict.structure()
 
-#we replace the Literals with ints, floats and strings and the URIRefs according to the 
-#namespaces we know about
+#we replace the Literals with ints, floats and strings 
+#and the URIRefs according to the #namespaces we know about
 rdf_dict.interpret(ns.lv2, ns.w3, ns.usefulinc, ns.kxstudio)
 
 pprint(rdf_dict[amp]["lv2:port"])
