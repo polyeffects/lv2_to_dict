@@ -29,8 +29,8 @@ class RDFdict(dict):
         self.graph = rdflib.ConjunctiveGraph()
         self.parsed_files = set()
     def parse(self, path, format="n3", subject=None):
-        '''Parse a file into the RDFdict.graph even with no namespaces given. The rdf 
-        schema #seeAlso is supported and the files will be parsed recursively. '''
+        '''Parse a file into the RDFdict.graph even with no namespaces given. The RDF 
+        schema "seeAlso" is supported and the files will be parsed recursively. '''
         if path in self.parsed_files:
             return
         self.parsed_files.add(path)
@@ -58,9 +58,9 @@ class RDFdict(dict):
         return tree
     def interpret(self, *args):
         '''Interprets itself according to the namespaces dictionaries that map strings 
-        to rdflib namespaces. The strings that form the keys of the namespaces replace the 
-        rdflib URIRefs. Rdflib Literals are interpreted as ints, floats or unicode 
-        according to their datatype even with no namespaces given'''
+        to RDFLib namespaces. The strings that form the keys of the namespaces replace the 
+        RDFLib URIRefs. RDFLib literals are interpreted as ints, floats or unicode 
+        according to their datatype even with no namespaces given.'''
         self.namespaces = {}
         for d in args:
             self.namespaces.update(d)

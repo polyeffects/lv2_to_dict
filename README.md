@@ -34,7 +34,7 @@ rdf_dict.parse(ttl_file, subject=amp)
 rdf_dict.structure()
 
 #we replace the Literals with ints, floats and strings 
-#and the URIRefs according to the #namespaces we know about
+#and the URIRefs according to the namespaces we know about
 rdf_dict.interpret(ns.lv2, ns.w3, ns.usefulinc, ns.kxstudio)
 
 pprint(rdf_dict[amp]["lv2:port"])
