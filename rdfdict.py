@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# Copyright 2014 Kaspar Emanuel <kaspar.emanuel@gmail.com> 
+# Copyright 2014 Kaspar Emanuel <kaspar.emanuel@gmail.com>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -29,7 +28,7 @@ class RDFdict(dict):
         self.graph = rdflib.ConjunctiveGraph()
         self.parsed_files = set()
     def parse(self, path, format="n3", subject=None):
-        '''Parse a file into the RDFdict.graph even with no namespaces given. The RDF 
+        '''Parse a file into the RDFdict.graph even with no namespaces given. The RDF
         schema "seeAlso" is supported and the files will be parsed recursively. '''
         if path in self.parsed_files:
             return
@@ -41,14 +40,15 @@ class RDFdict(dict):
         self.graph += graph
     def structure(self, subject=None):
         '''Fills itself as a dictionary that represents the structure of the graph.
-        Copies of dictionaries with nodes as subjects replace nodes that are objects. 
-        ''' 
+        Copies of dictionaries with nodes as subjects replace nodes that are objects.
+        '''
         self.update(self._structure(subject=subject))
     def _structure(self, subject=None):
-        tree = {}
+        tree = RDFdict()
+        tree.graph = self.graph
         for s,p,o in self.graph.triples((subject, None, None)):
                 if s not in tree:
-                    tree[s] = {} 
+                    tree[s] = RDFdict()
                 if p not in tree[s]:
                     tree[s][p] = []
                 if isinstance(o, rdflib.BNode):
@@ -57,17 +57,19 @@ class RDFdict(dict):
                     tree[s][p].append(o)
         return tree
     def interpret(self, *args):
-        '''Interprets itself according to the namespaces dictionaries that map strings 
-        to RDFLib namespaces. The strings that form the keys of the namespaces replace the 
-        RDFLib URIRefs. RDFLib literals are interpreted as ints, floats or unicode 
+        '''Interprets itself according to the namespaces dictionaries that map strings
+        to RDFLib namespaces. The strings that form the keys of the namespaces replace the
+        RDFLib URIRefs. RDFLib literals are interpreted as ints, floats or unicode
         according to their datatype even with no namespaces given.'''
         self.namespaces = {}
         for d in args:
             self.namespaces.update(d)
-        self.update(self._interpret(self))
+        interp_tree = self._interpret(self)
+        self.clear()
+        self.update(interp_tree)
     def _interpret(self, tree):
         if isinstance(tree, dict):
-            interp_tree = {}
+            interp_tree = RDFdict()
             for key, item in tree.items():
                 interp_key = self._interpret(key)
                 if isinstance(item, dict):
