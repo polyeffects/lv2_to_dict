@@ -1,3 +1,6 @@
+Dodgy hack using this lib to convert LV2 to python dict.
+
+
 #python-RDFdict
 ## About
 Python-RDFdict is a small utility class that uses [RDFLib][1] to represent RDF as hierarchies. It is 
